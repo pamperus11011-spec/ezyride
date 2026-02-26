@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 type LocationState = {
   cycleName?: string
@@ -12,6 +13,8 @@ function CycleDetailsPage() {
   const state = (location.state || {}) as LocationState
 
   const [hours, setHours] = useState(1)
+  const [availabilityNote, setAvailabilityNote] = useState<string | null>(null)
+  const [canRent, setCanRent] = useState(true)
 
   const cycleName = useMemo(() => {
     if (state.cycleName) return state.cycleName
@@ -22,7 +25,62 @@ function CycleDetailsPage() {
   const hourlyRate = 40
   const totalAmount = hours * hourlyRate
 
+  useEffect(() => {
+    async function checkAvailability() {
+      if (!id) return
+      setAvailabilityNote(null)
+      setCanRent(true)
+
+      const { data, error } = await supabase
+        .from('cycles')
+        .select('status, eta_minutes, unavailable_until, name')
+        .eq('name', cycleName)
+        .maybeSingle()
+
+      if (error) {
+        return
+      }
+
+      if (!data) {
+        setAvailabilityNote('This cycle is not configured yet.')
+        setCanRent(false)
+        return
+      }
+
+      const nowMs = Date.now()
+      const untilMs = data.unavailable_until
+        ? new Date(data.unavailable_until).getTime()
+        : null
+
+      const isEffectivelyAvailable =
+        data.status === 'available' ||
+        (data.status === 'unavailable' &&
+          untilMs != null &&
+          !Number.isNaN(untilMs) &&
+          untilMs <= nowMs)
+
+      if (!isEffectivelyAvailable) {
+        let note = 'Currently in use'
+        if (untilMs != null && !Number.isNaN(untilMs)) {
+          const diff = untilMs - nowMs
+          const mins = diff > 0 ? Math.ceil(diff / (60 * 1000)) : 0
+          note = `Back in ${mins} min`
+        } else if (typeof data.eta_minutes === 'number') {
+          note = `Back in ${data.eta_minutes} min`
+        }
+        setAvailabilityNote(note)
+        setCanRent(false)
+      }
+    }
+
+    void checkAvailability()
+  }, [cycleName, id])
+
   function handlePayNow() {
+    if (!canRent) {
+      alert('This cycle is currently in use. Please pick another cycle.')
+      return
+    }
     navigate('/payment', {
       state: {
         cycleId: id,
@@ -120,9 +178,15 @@ function CycleDetailsPage() {
       </main>
 
       <footer className="border-t border-white/5 bg-slate-950/90 backdrop-blur-md px-6 py-3">
+        {availabilityNote && !canRent && (
+          <p className="mb-2 text-[11px] text-amber-200 text-center">
+            {availabilityNote}. Please choose a different cycle.
+          </p>
+        )}
         <button
           onClick={handlePayNow}
-          className="w-full rounded-2xl bg-white text-slate-950 border border-accent px-4 py-3 text-sm font-semibold shadow-md active:scale-[0.98]"
+          disabled={!canRent}
+          className="w-full rounded-2xl bg-white text-slate-950 border border-accent px-4 py-3 text-sm font-semibold shadow-md active:scale-[0.98] disabled:opacity-60"
         >
           Pay now · ₹{totalAmount}
         </button>

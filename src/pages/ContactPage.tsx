@@ -1,20 +1,21 @@
+import AppShell from '../components/AppShell'
+
 function ContactPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <header className="px-6 pt-8 pb-4">
-        <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
-          Support
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Contact us
-        </h1>
-        <p className="mt-1 text-xs text-neutral/60">
-          Reach out for issues, feedback, or partnership opportunities on your
-          campus.
-        </p>
-      </header>
-
-      <main className="flex-1 px-6 pb-8 space-y-4">
+    <AppShell>
+      <main className="flex-1 px-6 pb-8 space-y-4 pt-2">
+        <header className="pb-2">
+          <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
+            Support
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Contact us
+          </h1>
+          <p className="mt-1 text-xs text-neutral/60">
+            Reach out for issues, feedback, or partnership opportunities on
+            your campus.
+          </p>
+        </header>
         <section className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-neutral/60 space-y-1.5">
           <p className="text-[11px] uppercase tracking-[0.18em] text-neutral/70">
             Contact info
@@ -47,7 +48,7 @@ function ContactPage() {
           </button>
         </section>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

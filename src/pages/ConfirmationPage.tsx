@@ -63,6 +63,21 @@ function ConfirmationPage() {
       // ignore errors for now; UI will still continue
     }
 
+    // Mark the cycle as unavailable for all users while this rental is active
+    try {
+      if (cycleName && endTime) {
+        await supabase
+          .from('cycles')
+          .update({
+            status: 'unavailable',
+            unavailable_until: endTime,
+          })
+          .eq('name', cycleName)
+      }
+    } catch {
+      // best-effort only
+    }
+
     // Store active rental locally so home screen can show timer
     try {
       const payload = {

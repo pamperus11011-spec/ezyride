@@ -1,20 +1,22 @@
+import AppShell from '../components/AppShell'
+
 function GalleryPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <header className="px-6 pt-8 pb-4">
-        <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
-          Gallery
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Ezyride cycles
-        </h1>
-        <p className="mt-1 text-xs text-neutral/60">
-          This section will showcase real photos of your electric cycles and
-          stands around campus.
-        </p>
-      </header>
+    <AppShell>
+      <main className="flex-1 px-6 pb-8 pt-2">
+        <header className="pb-2">
+          <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
+            Gallery
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Ezyride cycles
+          </h1>
+          <p className="mt-1 text-xs text-neutral/60">
+            This section will showcase real photos of your electric cycles and
+            stands around campus.
+          </p>
+        </header>
 
-      <main className="flex-1 px-6 pb-8">
         <div className="grid grid-cols-2 gap-3 mt-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div
@@ -26,7 +28,7 @@ function GalleryPage() {
           ))}
         </div>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

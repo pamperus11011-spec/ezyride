@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import AppShell from '../components/AppShell'
 
 type Cycle = {
   id: string
   name: string
   status: 'available' | 'unavailable' | 'maintenance'
   eta_minutes: number | null
+  unavailable_until?: string | null
 }
 
 type ActiveRental = {
@@ -25,6 +27,7 @@ function HomePage() {
   const [error, setError] = useState<string | null>(null)
   const [activeRental, setActiveRental] = useState<ActiveRental | null>(null)
   const [remainingMinutes, setRemainingMinutes] = useState<number | null>(null)
+  const [clock, setClock] = useState(0)
 
   useEffect(() => {
     async function loadCycles() {
@@ -33,7 +36,7 @@ function HomePage() {
 
       const { data, error } = await supabase
         .from('cycles')
-        .select('id, name, status, eta_minutes')
+        .select('id, name, status, eta_minutes, unavailable_until')
         .order('name', { ascending: true })
 
       if (error) {
@@ -45,7 +48,29 @@ function HomePage() {
       setLoading(false)
     }
 
-    loadCycles()
+    void loadCycles()
+
+    const channel = supabase
+      .channel('public:cycles')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'cycles' },
+        () => {
+          // when any cycle row changes, refresh the list
+          void loadCycles()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
+
+  // re-render once a minute so "Back in X min" counts down live
+  useEffect(() => {
+    const id = window.setInterval(() => setClock((n) => n + 1), 60 * 1000)
+    return () => window.clearInterval(id)
   }, [])
 
   useEffect(() => {
@@ -68,6 +93,19 @@ function HomePage() {
     }
 
     const rental = activeRental as ActiveRental & { endTime: string }
+
+    async function markCycleAvailable() {
+      if (!rental.cycleName) return
+      try {
+        await supabase
+          .from('cycles')
+          .update({ status: 'available', eta_minutes: null })
+          .eq('name', rental.cycleName)
+      } catch {
+        // ignore best-effort failure
+      }
+    }
+
     function updateRemaining() {
       const end = new Date(rental.endTime as string).getTime()
       const now = Date.now()
@@ -76,6 +114,7 @@ function HomePage() {
         setRemainingMinutes(0)
         setActiveRental(null)
         localStorage.removeItem('ezyride_active_rental')
+        void markCycleAvailable()
         return
       }
       const minutes = Math.ceil(diffMs / (60 * 1000))
@@ -88,29 +127,33 @@ function HomePage() {
   }, [activeRental])
 
   const totalCycles = cycles.length
-  const availableCycles = cycles.filter((c) => c.status === 'available').length
+  const nowMs = Date.now()
+
+  function effectiveCycleStatus(cycle: Cycle): Cycle['status'] {
+    if (cycle.status !== 'unavailable') return cycle.status
+    if (!cycle.unavailable_until) return cycle.status
+    const untilMs = new Date(cycle.unavailable_until).getTime()
+    if (Number.isNaN(untilMs)) return cycle.status
+    return untilMs <= nowMs ? 'available' : 'unavailable'
+  }
+
+  function effectiveEtaMinutes(cycle: Cycle): number | null {
+    if (effectiveCycleStatus(cycle) !== 'unavailable') return null
+    if (cycle.unavailable_until) {
+      const untilMs = new Date(cycle.unavailable_until).getTime()
+      if (!Number.isNaN(untilMs)) {
+        const diff = untilMs - nowMs
+        if (diff <= 0) return 0
+        return Math.ceil(diff / (60 * 1000))
+      }
+    }
+    return cycle.eta_minutes ?? null
+  }
+
+  const availableCycles = cycles.filter((c) => effectiveCycleStatus(c) === 'available').length
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <header className="px-6 pt-6 pb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg">
-            <span className="font-bold text-lg">E</span>
-          </div>
-          <div>
-            <p className="text-xs text-neutral/80 uppercase tracking-wide">
-              Electric Cycle Rental
-            </p>
-            <h1 className="text-xl font-semibold tracking-tight">Ezyride</h1>
-          </div>
-        </div>
-        <button className="h-10 w-10 rounded-full border border-white/10 flex flex-col items-center justify-center gap-[3px] bg-white/5">
-          <span className="h-[2px] w-4 rounded-full bg-white" />
-          <span className="h-[2px] w-3 rounded-full bg-white" />
-          <span className="h-[2px] w-5 rounded-full bg-white" />
-        </button>
-      </header>
-
+    <AppShell>
       <main className="flex-1 px-6 pb-20">
         <section className="mt-2 space-y-5">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-secondary p-5 shadow-xl">
@@ -179,7 +222,31 @@ function HomePage() {
             <div className="grid grid-cols-3 gap-3">
               {cycles.length > 0 ? (
                 cycles.map((cycle) => {
-                  const isAvailable = cycle.status === 'available'
+                  const status = effectiveCycleStatus(cycle)
+                  const isAvailable = status === 'available'
+                  const eta = effectiveEtaMinutes(cycle)
+                  const isUsersActiveCycle =
+                    (activeRental?.cycleName && activeRental.cycleName === cycle.name) ||
+                    (activeRental?.cycleId && activeRental.cycleId === cycle.id)
+
+                  const statusLabel = isUsersActiveCycle
+                    ? 'In use by you'
+                    : isAvailable
+                      ? 'Available'
+                      : cycle.status === 'maintenance'
+                        ? 'Maintenance'
+                        : 'In use'
+
+                  const description = isUsersActiveCycle
+                    ? remainingMinutes != null
+                      ? `Your ride: ${remainingMinutes} min left`
+                      : 'Your ride is active'
+                    : isAvailable
+                      ? 'Tap to scan & start'
+                      : eta != null
+                        ? `Back in ${eta} min`
+                        : 'Currently not available'
+
                   return (
                     <div
                       key={cycle.id}
@@ -189,18 +256,10 @@ function HomePage() {
                         {cycle.name}
                       </p>
                       <p className="mt-1 font-semibold">
-                        {isAvailable
-                          ? 'Available'
-                          : cycle.status === 'maintenance'
-                            ? 'Maintenance'
-                            : 'In use'}
+                        {statusLabel}
                       </p>
                       <p className="mt-1 text-[11px] text-neutral/60">
-                        {isAvailable
-                          ? 'Tap to scan & start'
-                          : cycle.eta_minutes != null
-                            ? `Back in ${cycle.eta_minutes} min`
-                            : 'Currently not available'}
+                        {description}
                       </p>
                     </div>
                   )
@@ -261,36 +320,9 @@ function HomePage() {
             </span>
             <span>Home</span>
           </button>
-          <button
-            className="flex flex-col items-center gap-1 text-neutral/70"
-            onClick={() => navigate('/scanner')}
-          >
-            <span className="h-5 w-5 rounded-full border border-white/20 flex items-center justify-center text-[10px]">
-              QR
-            </span>
-            <span>Scanner</span>
-          </button>
-          <button
-            className="flex flex-col items-center gap-1 text-neutral/70"
-            onClick={() => navigate('/history')}
-          >
-            <span className="h-5 w-5 rounded-full border border-white/20 flex items-center justify-center text-[10px]">
-              ⏱
-            </span>
-            <span>History</span>
-          </button>
-          <button
-            className="flex flex-col items-center gap-1 text-neutral/70"
-            onClick={() => navigate('/profile')}
-          >
-            <span className="h-5 w-5 rounded-full border border-white/20 flex items-center justify-center text-[10px]">
-              U
-            </span>
-            <span>Profile</span>
-          </button>
         </div>
       </nav>
-    </div>
+    </AppShell>
   )
 }
 

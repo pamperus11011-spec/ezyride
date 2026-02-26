@@ -29,6 +29,34 @@ function PaymentPage() {
       return
     }
 
+    // Double-check availability server-side before starting payment
+    const { data: cycleRow } = await supabase
+      .from('cycles')
+      .select('status, eta_minutes, unavailable_until')
+      .eq('name', cycleName)
+      .maybeSingle()
+
+    if (cycleRow && cycleRow.status !== 'available') {
+      const nowMs = Date.now()
+      const untilMs = cycleRow.unavailable_until
+        ? new Date(cycleRow.unavailable_until).getTime()
+        : null
+      const isEffectivelyAvailable =
+        cycleRow.status === 'available' ||
+        (cycleRow.status === 'unavailable' &&
+          untilMs != null &&
+          !Number.isNaN(untilMs) &&
+          untilMs <= nowMs)
+
+      if (isEffectivelyAvailable) {
+        // ok to continue
+      } else {
+      alert('This cycle just became unavailable. Please pick another cycle.')
+      navigate('/home', { replace: true })
+      return
+      }
+    }
+
     const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID as string | undefined
     if (!window.Razorpay || !keyId) {
       // Fallback: keep existing fake flow if Razorpay is not available

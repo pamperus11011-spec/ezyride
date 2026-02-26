@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import AppShell from '../components/AppShell'
 
 function ProfilePage() {
   const navigate = useNavigate()
@@ -25,20 +26,19 @@ function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <header className="px-6 pt-8 pb-4">
-        <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
-          Account
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">
-          Your profile
-        </h1>
-        <p className="mt-1 text-xs text-neutral/60">
-          Manage your campus account and sign out of Ezyride.
-        </p>
-      </header>
-
-      <main className="flex-1 px-6 pb-8 space-y-4">
+    <AppShell>
+      <main className="flex-1 px-6 pb-8 space-y-4 pt-2">
+        <header className="pb-2">
+          <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
+            Account
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            Your profile
+          </h1>
+          <p className="mt-1 text-xs text-neutral/60">
+            Manage your campus account and sign out of Ezyride.
+          </p>
+        </header>
         <section className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
           <p className="text-[11px] uppercase tracking-[0.18em] text-neutral/70">
             Basic info
@@ -65,7 +65,7 @@ function ProfilePage() {
           </button>
         </section>
       </main>
-    </div>
+    </AppShell>
   )
 }
 

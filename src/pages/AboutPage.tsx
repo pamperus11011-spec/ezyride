@@ -1,17 +1,18 @@
+import AppShell from '../components/AppShell'
+
 function AboutPage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-      <header className="px-6 pt-8 pb-4">
-        <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
-          About
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Ezyride</h1>
-        <p className="mt-1 text-xs text-neutral/60">
-          A campus‑first electric cycle rental PWA designed for SRM RMP.
-        </p>
-      </header>
-
-      <main className="flex-1 px-6 pb-8 space-y-4 text-xs text-neutral/60">
+    <AppShell>
+      <main className="flex-1 px-6 pb-8 space-y-4 text-xs text-neutral/60 pt-2">
+        <header className="pb-2">
+          <p className="text-xs text-neutral/70 uppercase tracking-[0.25em]">
+            About
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Ezyride</h1>
+          <p className="mt-1 text-xs text-neutral/60">
+            A campus‑first electric cycle rental PWA designed for SRM RMP.
+          </p>
+        </header>
         <section className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
           <p className="text-[11px] uppercase tracking-[0.18em] text-neutral/70">
             Mission
@@ -33,7 +34,7 @@ function AboutPage() {
           </p>
         </section>
       </main>
-    </div>
+    </AppShell>
   )
 }
 
