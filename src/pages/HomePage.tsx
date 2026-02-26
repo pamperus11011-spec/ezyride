@@ -67,7 +67,7 @@ function HomePage() {
       return
     }
 
-    const rental = activeRental
+    const rental = activeRental as ActiveRental & { endTime: string }
     function updateRemaining() {
       const end = new Date(rental.endTime as string).getTime()
       const now = Date.now()
